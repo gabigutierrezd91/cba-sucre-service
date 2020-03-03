@@ -1,9 +1,9 @@
-const { db } = require('../util/admin');
+const { admin, db } = require('../util/admin');
 
 const config = require('../util/config');
 
 const firebase = require('firebase');
-firebase.initializeApp(config)
+firebase.initializeApp(config);
 
 const {
   validateSignupData,
@@ -17,7 +17,7 @@ exports.signup = (request, response) => {
     email: request.body.email,
     password: request.body.password,
     confirmPassword: request.body.confirmPassword,
-    handle: request.body.handle,
+    handle: request.body.handle
   };
 
   const { valid, errors } = validateSignupData(newUser);
@@ -35,7 +35,7 @@ exports.signup = (request, response) => {
       } else {
         return firebase
           .auth()
-          .createUserWithEmailAndPassword(newUser.email, newUser.password)
+          .createUserWithEmailAndPassword(newUser.email, newUser.password);
       }
     })
     .then((data) => {
@@ -47,7 +47,7 @@ exports.signup = (request, response) => {
       const userCredentials = {
         handle: newUser.handle,
         email: newUser.email,
-        createAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
         imageUrl: `https://firebasestorage.googleapis.com/v0/b/${
           config.storageBucket
         }/o/${noImg}?alt=media`,
@@ -61,7 +61,7 @@ exports.signup = (request, response) => {
     .catch((err) => {
       console.error(err);
       if (err.code === 'auth/email-already-in-use') {
-        return response.status(400).json({ email: 'Email is already in use' })
+        return response.status(400).json({ email: 'Email is already is use' });
       } else {
         return response
           .status(500)
