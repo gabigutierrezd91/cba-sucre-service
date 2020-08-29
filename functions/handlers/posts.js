@@ -9,6 +9,7 @@ exports.getAllPosts = (request, response) => {
       data.forEach((doc) => {
         posts.push({
           postId: doc.id,
+          title: doc.data().title,
           body: doc.data().body,
           userHandle: doc.data().userHandle,
           createdAt: doc.data().createdAt,
@@ -26,11 +27,16 @@ exports.getAllPosts = (request, response) => {
 };
 
 exports.postOnePost = (request, response) => {
+  if (request.body.title.trim() === '') {
+    return response.status(400).json({ title: 'Title must not be empty' });
+  }
+
   if (request.body.body.trim() === '') {
     return response.status(400).json({ body: 'Body must not be empty' });
   }
 
   const newPost = {
+    title: request.body.title,
     body: request.body.body,
     userHandle: request.user.handle,
     userImage: request.user.imageUrl,
@@ -80,6 +86,46 @@ exports.getPost = (request, response) => {
       response.status(500).json({ error: err.code });
     });
 };
+
+exports.editPost = (request, response) => {
+  if (request.body.title.trim() === '') {
+    return response.status(400).json({ title: 'Title must not be empty' });
+  }
+
+  if (request.body.body.trim() === '') {
+    return response.status(400).json({ body: 'Body must not be empty' });
+  }
+
+  const editedPost = {
+    title: request.body.title,
+    body: request.body.body
+  };
+
+  const postDocument = db.doc(`/posts/${request.params.postId}`);
+
+  postDocument
+    .get()
+    .then((doc) => {
+      if (doc.exists) {
+        if (doc.data().title === editedPost.title && 
+            doc.data().body === editedPost.body) {
+          return response.json({ message: 'There are no changes' });
+        } else {
+          return postDocument.update(editedPost);
+        }
+      } else {
+        return response.status(404).json({ error: 'Post not found' });
+      }
+    })
+    .then(() => {
+      return response.json({ message: 'Post edited successfully' });
+    })
+    .catch((err) => {
+      console.error(err);
+      return response.status(500).json({ error: err.code });
+    });
+};
+
 // Comment on a comment
 exports.commentOnPost = (request, response) => {
   if (request.body.body.trim() === '')

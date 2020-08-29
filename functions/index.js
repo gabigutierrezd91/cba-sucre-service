@@ -11,6 +11,7 @@ const {
   getAllPosts,
   postOnePost,
   getPost,
+  editPost,
   commentOnPost,
   likePost,
   unlikePost,
@@ -20,6 +21,7 @@ const {
   signup,
   login,
   uploadImage,
+  uploadFile,
   addUserDetails,
   getAuthenticatedUser,
   getUserDetails,
@@ -30,6 +32,7 @@ const {
 app.get('/posts', getAllPosts);
 app.post('/post', FBAuth, postOnePost);
 app.get('/post/:postId', getPost);
+app.post('/post/:postId', FBAuth, editPost);
 app.delete('/post/:postId', FBAuth, deletePost);
 app.get('/post/:postId/like', FBAuth, likePost);
 app.get('/post/:postId/unlike', FBAuth, unlikePost);
@@ -39,6 +42,7 @@ app.post('/post/:postId/comment', FBAuth, commentOnPost);
 app.post('/signup', signup);
 app.post('/login', login);
 app.post('/user/image', FBAuth, uploadImage);
+app.post('/user/file', FBAuth, uploadFile);
 app.post('/user', FBAuth, addUserDetails);
 app.get('/user', FBAuth, getAuthenticatedUser);
 app.get('/user/:handle', getUserDetails);

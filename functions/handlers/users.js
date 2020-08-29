@@ -10,6 +10,7 @@ const {
   validateLoginData,
   reduceUserDetails
 } = require('../util/validators');
+const { request } = require('express');
 
 // Sign users up
 exports.signup = (request, response) => {
@@ -243,6 +244,66 @@ exports.uploadImage = (request, response) => {
       })
       .then(() => {
         return response.json({ message: 'image uploaded successfully' });
+      })
+      .catch((err) => {
+        console.error(err);
+        return response.status(500).json({ error: 'something went wrong' });
+      });
+  });
+  busboy.end(request.rawBody);
+};
+
+// exports.deleteFile = (request, response) => {
+//   const BusBoy = require('busboy');
+//   const path = require('path');
+//   const os = require('os');
+//   const fs = require('fs');
+
+//   const busboy = new BusBoy({ headers: request.headers });
+
+//   busboy.on('finish', () => {
+//     admin
+//      .storage()
+//      .bucket()
+//      .delete()
+//   });
+//   busboy.end(request.rawBody);
+// }
+
+// Upload a file
+exports.uploadFile = (request, response) => {
+  const BusBoy = require('busboy');
+  const path = require('path');
+  const os = require('os');
+  const fs = require('fs');
+
+  const busboy = new BusBoy({ headers: request.headers });
+
+  let fileToBeUploaded = {};
+
+  busboy.on('file', (fieldname, file, filename, encoding, mimetype) => {
+    console.log(fieldname, file, filename, encoding, mimetype);
+    if (mimetype === 'application/vnd.microsoft.portable-executable') {
+      return response.status(400).json({ error: 'Wrong file type submitted' });
+    }
+    const filepath = path.join(os.tmpdir(), filename);
+    fileToBeUploaded = { filepath, mimetype };
+    file.pipe(fs.createWriteStream(filepath));
+  });
+  busboy.on('finish', () => {
+    admin
+      .storage()
+      .bucket()
+      .upload(fileToBeUploaded.filepath, {
+        resumable: false,
+        metadata: {
+          metadata: {
+            contentType: fileToBeUploaded.mimetype
+          }
+        }
+      })
+      .then(() => {
+        return response.json({ message: 'file uploaded successfully' });
       })
       .catch((err) => {
         console.error(err);
