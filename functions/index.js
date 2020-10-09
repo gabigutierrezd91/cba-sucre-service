@@ -15,7 +15,9 @@ const {
   commentOnPost,
   likePost,
   unlikePost,
-  deletePost
+  deletePost,
+  fileOnPost,
+  deleteFile
 } = require('./handlers/posts');
 const {
   signup,
@@ -37,6 +39,8 @@ app.delete('/post/:postId', FBAuth, deletePost);
 app.get('/post/:postId/like', FBAuth, likePost);
 app.get('/post/:postId/unlike', FBAuth, unlikePost);
 app.post('/post/:postId/comment', FBAuth, commentOnPost);
+app.post('/post/:postId/file', FBAuth, fileOnPost);
+app.delete('/post/file/:fileId', FBAuth, deleteFile);
 
 // users routes
 app.post('/signup', signup);

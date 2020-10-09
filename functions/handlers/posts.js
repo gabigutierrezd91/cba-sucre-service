@@ -1,4 +1,8 @@
-const { db } = require('../util/admin');
+const { admin, db } = require('../util/admin');
+
+const config = require('../util/config');
+
+const firebase = require('firebase');
 
 exports.getAllPosts = (request, response) => {
   db.collection('posts')
@@ -42,7 +46,8 @@ exports.postOnePost = (request, response) => {
     userImage: request.user.imageUrl,
     createdAt: new Date().toISOString(),
     likeCount: 0,
-    commentCount: 0
+    commentCount: 0,
+    filesList: []
   };
 
   db.collection('posts')
@@ -107,12 +112,7 @@ exports.editPost = (request, response) => {
     .get()
     .then((doc) => {
       if (doc.exists) {
-        if (doc.data().title === editedPost.title && 
-            doc.data().body === editedPost.body) {
-          return response.json({ message: 'There are no changes' });
-        } else {
-          return postDocument.update(editedPost);
-        }
+        return postDocument.update(editedPost);
       } else {
         return response.status(404).json({ error: 'Post not found' });
       }
@@ -126,7 +126,146 @@ exports.editPost = (request, response) => {
     });
 };
 
-// Comment on a comment
+// File on a post
+exports.fileOnPost = (request, response) => {
+  const BusBoy = require('busboy');
+  const path = require('path');
+  const os = require('os');
+  const fs = require('fs');
+
+  const busboy = new BusBoy({ headers: request.headers });
+
+  let fileToBeUploaded = {};
+
+  let fileInfo = {};
+
+  const postDocument = db.doc(`/posts/${request.params.postId}`);
+
+  let filesData;
+  let datafileName;
+
+  postDocument
+    .get()
+    .then((doc) => {
+      if (!doc.exists) {
+        return response.status(404).json({ error: 'Post not found' });
+      }
+      busboy.on('file', (fieldname, file, filename, encoding, mimetype) => {
+        console.log(fieldname, file, filename, encoding, mimetype);
+        if (mimetype === 'application/vnd.microsoft.portable-executable') {
+          return response.status(400).json({ error: 'Wrong file type submitted' });
+        }
+        datafileName = filename;
+        const fileExtension = filename.split('.')[filename.split('.').length - 1];
+        while(doc.data().filesList.find(a => a === datafileName) !== undefined) {
+          datafileName = datafileName.slice(0, datafileName.length - fileExtension.length - 1);
+          datafileName = datafileName.concat('_copy.', fileExtension);
+        }
+        const filepath = path.join(os.tmpdir(), datafileName);
+        fileToBeUploaded = { filepath, mimetype, datafileName };
+        file.pipe(fs.createWriteStream(filepath));
+      });
+      
+      busboy.on('finish', () => {
+        admin
+          .storage()
+          .bucket()
+          .upload(fileToBeUploaded.filepath, {
+            destination: `${request.params.postId}/${fileToBeUploaded.datafileName}`,
+            // Files larger than 5 Mb:
+            // resumable: true,
+            metadata: {
+              metadata: {
+                contentType: fileToBeUploaded.mimetype
+              }
+            }
+          })
+          .then(() => {
+            return response.json({ message: 'file uploaded successfully' });
+          })
+          .catch((err) => {
+            console.error(err);
+            return response.status(500).json({ error: 'something went wrong' });
+          });
+      });
+      busboy.end(request.rawBody);
+      filesData = doc.data().filesList;
+      filesData.push(fileToBeUploaded.datafileName);
+      return postDocument.update({ filesList: filesData});
+    })
+    .then(() => {
+      fileInfo = {
+        fileName: fileToBeUploaded.datafileName,
+        fileUrl: `https://firebasestorage.googleapis.com/v0/b/${
+              config.storageBucket
+            }/o/${request.params.postId}%2F${fileToBeUploaded.datafileName}?alt=media`,
+        userHandle: request.user.handle,
+        createdAt: new Date().toISOString(),
+        postId: request.params.postId
+      };
+      return db.collection('files').add(fileInfo);
+    })
+    .then((doc) => {
+      const resFile = fileInfo;
+      resFile.fileId = doc.id;
+      response.json(resFile);
+    })
+    .catch((err) => {
+      console.error(err);
+      response.status(500).json({ error: 'Something went wrong' });
+    });
+}
+
+// Delete a file
+exports.deleteFile = (request, response) => {
+
+  const file = db.doc(`/files/${request.params.fileId}`);
+  file
+    .get()
+    .then((doc) => {
+      if(!doc.exists) {
+        return response.status(404).json({ error: 'File not found'});
+      }
+      if(doc.data().userHandle !== request.user.handle) {
+        return response.status(403).json({ error: 'Unauthorized' });
+      } else {
+        admin
+          .storage()
+          .bucket()
+          .file(`${doc.data().postId}/${doc.data().fileName}`)
+          .delete();
+
+        db.doc(`/posts/${doc.data().postId}`)
+          .get()
+          .then((dataPost) => {
+            if (!dataPost.exists) {
+              return response.status(404).json({ error: 'Post not found' });
+            }
+            let newFilesList = dataPost.data().filesList;
+            newFilesList.splice(newFilesList.findIndex(a => a === doc.data().fileName), 1);
+            return dataPost.ref.update({ filesList: newFilesList });
+          })
+          .then(() => {
+            return response.json({ message: 'Files List Updated' });
+          })
+          .catch((err) => {
+            console.error(err);
+            return response.status(500).json({ error: err.code });
+          });
+
+        return file.delete();
+      }
+    })
+    .then(() => {
+      response.json({ message: 'File deleted successfully' });
+    })
+    .catch((err) => {
+      console.error(err);
+      return response.status(500).json({ error: err.code });
+    });
+};
+
+// Comment on a post
 exports.commentOnPost = (request, response) => {
   if (request.body.body.trim() === '')
     return response.status(400).json({ comment: 'Must not be empty' });
