@@ -12,10 +12,12 @@ const {
   postOnePost,
   getPost,
   editPost,
-  commentOnPost,
+  deletePost,
   likePost,
   unlikePost,
-  deletePost,
+  commentOnPost,
+  getAllFiles,
+  getFile,
   fileOnPost,
   deleteFile
 } = require('./handlers/posts');
@@ -39,6 +41,8 @@ app.delete('/post/:postId', FBAuth, deletePost);
 app.get('/post/:postId/like', FBAuth, likePost);
 app.get('/post/:postId/unlike', FBAuth, unlikePost);
 app.post('/post/:postId/comment', FBAuth, commentOnPost);
+app.get('/post/:postId/files', getAllFiles);
+app.get('/file/:fileId', getFile);
 app.post('/post/:postId/file', FBAuth, fileOnPost);
 app.delete('/post/file/:fileId', FBAuth, deleteFile);
 

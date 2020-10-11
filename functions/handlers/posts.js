@@ -30,6 +30,48 @@ exports.getAllPosts = (request, response) => {
     });
 };
 
+exports.getAllFiles = (request, response) => {
+  db.collection('files')
+    .where('postId', '==', request.params.postId)
+    .orderBy('createdAt', 'desc')
+    .get()
+    .then((data) => {
+      let files = [];
+      data.forEach((doc) => {
+        files.push({
+          fileId: doc.id,
+          fileName: doc.data().fileName,
+          fileUrl: doc.data().fileUrl,
+          createdAt: doc.data().createdAt,
+          userHandle: doc.data().userHandle
+        });
+      });
+      return response.json(files);
+    })
+    .catch((err) => {
+      console.error(err);
+      response.status(500).json({ error: err });
+    });
+};
+
+exports.getFile = (request, response) => {
+  let fileData = {};
+  db.doc(`/files/${request.params.fileId}`)
+    .get()
+    .then((doc) => {
+      if (!doc.exists) {
+        return response.status(404).json({ error: 'File not found'});
+      }
+      fileData = doc.data();
+      fileData.postId = doc.id;
+      return response.json(fileData);
+    })
+    .catch((err) => {
+      console.error(err);
+      response.status(500).json({ error: err });
+    });
+};
+
 exports.postOnePost = (request, response) => {
   if (request.body.title.trim() === '') {
     return response.status(400).json({ title: 'Title must not be empty' });
